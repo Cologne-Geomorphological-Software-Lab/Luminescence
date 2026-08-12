@@ -1,0 +1,34 @@
+{
+  "De": [
+    {
+      "De": 1666.01288167282,
+      "De.Error": 48.3701219934995,
+      "D01": 1938.31491241411,
+      "D01.ERROR": 94.8042435285898,
+      "D02": null,
+      "D02.ERROR": null,
+      "R": null,
+      "R.LOWER": null,
+      "R.UPPER": null,
+      "Dc": null,
+      "Dc.LOWER": null,
+      "Dc.UPPER": null,
+      "D63": null,
+      "D63.LOWER": null,
+      "D63.UPPER": null,
+      "D80": 3118.74869407431,
+      "D80.LOWER": null,
+      "D80.UPPER": null,
+      "n_N": 0.485260863505775,
+      "De.MC": 1666.74280158504,
+      "Fit": "SSE",
+      "Mode": "interpolation",
+      "HPDI68_L": 1614.94791032904,
+      "HPDI68_U": 1714.30675331229,
+      "HPDI95_L": 1571.98192417412,
+      "HPDI95_U": 1773.38498427531,
+      ".De.plot": 1666.01288167282,
+      ".De.raw": 1666.01288167282
+    }
+  ]
+}

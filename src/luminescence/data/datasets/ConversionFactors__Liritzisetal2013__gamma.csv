@@ -1,0 +1,5 @@
+# source: Luminescence R package v1.3.0.9000-2, data/BaseDataSet.ConversionFactors.rda
+# generated: 2026-08-12 14:55:17 CEST by tools/generate_fixtures.R
+"K","Th","U"
+0.2498,0.0481,0.1118
+0.0048,2e-04,2e-04

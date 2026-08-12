@@ -1,0 +1,32 @@
+{
+  "luminescence_r_version": "1.3.0.9000-2",
+  "r_version": "R version 4.6.1 (2026-06-24 ucrt)",
+  "generated": "2026-08-12 14:55:17 CEST",
+  "generator": "tools/generate_fixtures.R",
+  "files": [
+    "src/luminescence/data/datasets/ConversionFactors__AdamiecAitken1998__alpha.csv",
+    "src/luminescence/data/datasets/ConversionFactors__AdamiecAitken1998__beta.csv",
+    "src/luminescence/data/datasets/ConversionFactors__AdamiecAitken1998__gamma.csv",
+    "src/luminescence/data/datasets/ConversionFactors__Cresswelletal2018__alpha.csv",
+    "src/luminescence/data/datasets/ConversionFactors__Cresswelletal2018__beta.csv",
+    "src/luminescence/data/datasets/ConversionFactors__Cresswelletal2018__gamma.csv",
+    "src/luminescence/data/datasets/ConversionFactors__Guerinetal2011__alpha.csv",
+    "src/luminescence/data/datasets/ConversionFactors__Guerinetal2011__beta.csv",
+    "src/luminescence/data/datasets/ConversionFactors__Guerinetal2011__gamma.csv",
+    "src/luminescence/data/datasets/ConversionFactors__Liritzisetal2013__alpha.csv",
+    "src/luminescence/data/datasets/ConversionFactors__Liritzisetal2013__beta.csv",
+    "src/luminescence/data/datasets/ConversionFactors__Liritzisetal2013__gamma.csv",
+    "src/luminescence/data/datasets/FractionalGammaDose__Aitken1985.csv",
+    "src/luminescence/data/datasets/GrainSizeAttenuation.csv",
+    "src/luminescence/data/datasets/values.cosmic.Softcomp.csv",
+    "src/luminescence/data/datasets/values.factor.Altitude.csv",
+    "src/luminescence/data/datasets/values.par.FJH.csv",
+    "tests/python/fixtures/analysis/analyse_SAR.CWOSL__pos1_sig1-2_bg900-1000_SSE.json",
+    "tests/python/fixtures/analysis/calc_OSLLxTxRatio__pos1_first_pair.json",
+    "tests/python/fixtures/fitting/fit_DoseResponseCurve__pos1_SSE.json",
+    "tests/python/fixtures/io/CWOSL.SAR.Data__DATA.json",
+    "tests/python/fixtures/io/CWOSL.SAR.Data__METADATA.csv",
+    "tests/python/fixtures/models/calc_Statistics__BT998.json",
+    "tests/python/fixtures/models/ExampleData.DeValues__BT998.csv"
+  ]
+}
