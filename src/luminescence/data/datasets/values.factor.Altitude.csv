@@ -1,0 +1,10 @@
+# source: Luminescence R package v1.3.0.9000-2, data/BaseDataSet.CosmicDoseRate.rda
+# generated: 2026-08-12 14:55:17 CEST by tools/generate_fixtures.R
+"altitude","factor"
+0,1.04347
+1,1.67391
+2,2.28261
+3,2.78261
+4,3.28261
+5,3.70434
+5.35,3.84783
