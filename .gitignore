@@ -104,7 +104,6 @@ tests/testthat/*/*.new.svg
 vignettes/*_cache/
 vignettes/*_files/
 vignettes/*.xsyg
-docs/
 
 Luminescence.helpers
 Luminescence.BuildResults

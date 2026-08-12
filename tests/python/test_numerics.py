@@ -141,12 +141,11 @@ class TestCalcOslLxTxRatio:
         rng = np.random.default_rng(7)
         lx, tx = make_pair()
         lx[:, 1] += rng.normal(0, 50, lx.shape[0])  # overdispersed background
-        kwargs = {
-            "signal_integral": range(1, 11),
-            "background_integral": range(31, 101),
-        }
-        poisson = calc_osl_lxtx_ratio(lx, tx, background_count_distribution="poisson", **kwargs)
-        nonpoisson = calc_osl_lxtx_ratio(lx, tx, **kwargs)
+        signal, background = range(1, 11), range(31, 101)
+        poisson = calc_osl_lxtx_ratio(
+            lx, tx, signal, background, background_count_distribution="poisson"
+        )
+        nonpoisson = calc_osl_lxtx_ratio(lx, tx, signal, background)
         assert nonpoisson["LxTx.table"]["Net_LnLx.Error"] >= poisson["LxTx.table"]["Net_LnLx.Error"]
 
     def test_missing_tx_yields_nan_not_zero(self) -> None:

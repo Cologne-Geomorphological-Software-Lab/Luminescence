@@ -95,7 +95,7 @@ class TestSpectrum:
 
     def test_axis_length_mismatch(self) -> None:
         with pytest.raises(ValueError, match="do not match"):
-            Spectrum(data=np.ones((4, 2)), wavelengths=np.arange(3))
+            Spectrum(data=np.ones((4, 2)), wavelengths=np.arange(3.0))
 
     def test_long_dataframe(self) -> None:
         df = Spectrum(data=np.arange(6.0).reshape(3, 2)).to_dataframe()

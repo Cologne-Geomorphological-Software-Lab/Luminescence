@@ -42,7 +42,7 @@ class TestVersions:
         result = read_bin(extdata_dir / "BINfile_V8.binx")
         assert isinstance(result, RisoeBINFileData)
         assert (result.metadata["VERSION"] == 8).all()
-        assert (result.metadata["RECTYPE"].isin([0, 1])).all()
+        assert bool(result.metadata["RECTYPE"].isin([0, 1]).all())
         assert (result.metadata["FNAME"] != "").any()
 
     def test_ltype_translated(self, r_test_data_dir: Path) -> None:
