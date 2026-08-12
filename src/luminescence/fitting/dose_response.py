@@ -168,17 +168,50 @@ def fit_dose_response_curve(
 ) -> Results | None:
     """Fit a dose-response curve and derive the equivalent dose (De).
 
+    Port of the R function ``fit_DoseResponseCurve``. The De error is a
+    parametric bootstrap: every LxTx value is resampled from
+    Normal(value, error), the fit repeated ``n_mc`` times, and the sample
+    standard deviation of the resulting De distribution reported.
+
     Args:
         data: Table with columns (Dose, LxTx, LxTx.Error, [TnTx, Test_Dose]),
-            by name (case-insensitive) or position. **Row 0 is the natural.**
-        mode: "interpolation" (De from the natural signal), "extrapolation"
-            (De from the x-intercept), or "alternate" (fit only).
-        fit_method: "LIN", "SSE" (saturating exponential), "SSE OR LIN", "GOK".
+            matched by name (case-insensitive) or taken by position. Row 0 is
+            the natural signal.
+        mode: ``"interpolation"`` inverts the fitted curve at the natural
+            LxTx (row 0 is excluded from the fit); ``"extrapolation"`` takes
+            the x-intercept (row 0 included); ``"alternate"`` fits only, no
+            De.
+        fit_method: ``"SSE"`` (saturating exponential, default), ``"LIN"``,
+            ``"SSE OR LIN"`` (fall back to LIN when SSE fails), or ``"GOK"``
+            (general-order kinetics). The R legacy names (``"EXP"``, ...) are
+            accepted. Methods not yet ported (``QDR``, ``SSE+LIN``, ``DSE``,
+            ``OTOR``, ``OTORX``) raise ``NotImplementedError``.
+        fit_force_through_origin: Pin the curve to (0, 0).
+        fit_weights: ``"inverse_var"`` (1/e^2, default), ``"inverse_std"``,
+            ``"norm_inverse_std"``, an explicit weight vector, or ``None``
+            for unweighted fitting. Reset to ``None`` with a warning when the
+            error column contains zeros, NaN, or infinities.
+        fit_including_repeated_reg_points: Include repeated regeneration
+            points in the fit (default True).
+        fit_bounds: Constrain the parameters to physically meaningful ranges
+            (non-negative); disable for unconstrained fitting.
+        n_mc: Number of Monte-Carlo runs for the De error.
         rng: Seed or generator for the Monte-Carlo error estimation.
+        verbose: Print the one-line fit message.
 
     Returns:
-        :class:`Results` with entries De (full column schema), De.MC, Fit,
-        Formula — or None when the input cannot be fitted at all.
+        :class:`~luminescence.core.results.Results` with entries ``"De"``
+        (a dict following the R column schema: De, De.Error, D01, D01.ERROR,
+        De.MC, Fit, Mode, ...), ``"De.MC"`` (the Monte-Carlo De vector),
+        ``"Fit"`` (fitted parameters), ``"Fit.Args"``, and ``"Formula"``.
+        ``None`` (with a warning) when the input cannot be fitted at all,
+        e.g. when all dose points are identical.
+
+    Raises:
+        ValueError: If ``data`` has fewer than two columns, ``mode`` or
+            ``fit_method`` is unknown, or an explicit weight vector has the
+            wrong length.
+        NotImplementedError: For fit methods that are not yet ported.
     """
     fit_method = _LEGACY_METHODS.get(fit_method, fit_method)
     if fit_method not in _KNOWN:

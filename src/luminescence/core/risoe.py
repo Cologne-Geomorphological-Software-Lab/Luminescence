@@ -195,7 +195,17 @@ class RisoeBINFileData:
     # -- bridge to the RLum world -------------------------------------------
 
     def record_to_curve(self, row: int) -> Curve:
-        """Convert metadata row ``row`` (0-based) + payload into a Curve."""
+        """Convert one record into a :class:`~luminescence.core.curve.Curve`.
+
+        Args:
+            row: 0-based row index into :attr:`metadata`.
+
+        Returns:
+            A curve whose ``record_type`` is the translated LTYPE with a
+            ``" (PMT)"`` suffix and whose ``info`` dict carries all metadata
+            columns of the row. RECTYPE-128 rows yield an empty placeholder
+            curve.
+        """
         meta = self.metadata.iloc[row]
         if int(meta["RECTYPE"]) == 128:
             return Curve(originator="risoe_bin_file_data_to_curve")
@@ -232,10 +242,34 @@ class RisoeBINFileData:
     ) -> Analysis | list[Analysis]:
         """Group records into one Analysis per (position, grain) pair.
 
-        ``run``/``set_``/``ltype``/``dtype`` are filters (invalid values are an
-        error); invalid ``pos``/``grain`` values are skipped with a warning.
-        A single (position, grain) pair returns a bare Analysis, several
-        return a flat list ordered position-major.
+        Port of the R function ``Risoe.BINfileData2RLum.Analysis``: the bridge
+        from the raw file representation into the measurement-sequence world.
+        Records within a pair keep their file order; RECTYPE-128 (camera/ROI)
+        rows become empty placeholder curves.
+
+        Args:
+            pos: Carousel position(s) to convert; default: all present.
+                Invalid values are skipped with a warning.
+            grain: Grain number(s); default: all present. Invalid values are
+                skipped with a warning.
+            run: Keep only records from these runs; invalid values are an
+                error listing the valid ones.
+            set_: Keep only records from these sets (filter, like ``run``).
+            ltype: Keep only these luminescence types, e.g. ``"OSL"``.
+            dtype: Keep only these data types, e.g. ``"Natural"``.
+            protocol: Protocol name stamped on each created Analysis.
+            keep_empty: Keep (position, grain) pairs that end up with no
+                records; with ``False`` they are dropped.
+
+        Returns:
+            A single :class:`~luminescence.core.analysis.Analysis` when
+            exactly one (position, grain) pair results, otherwise a flat list
+            ordered position-major. Each curve's ``pids`` names its parent
+            Analysis.
+
+        Raises:
+            ValueError: If ``run``, ``set_``, ``ltype``, or ``dtype`` contain
+                values that do not occur in the file.
         """
         meta = self.metadata
         pos_list = _resolve_filter(pos, _col(meta, "POSITION"), "pos", strict=False)

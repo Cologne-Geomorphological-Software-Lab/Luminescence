@@ -108,10 +108,77 @@ def analyse_sar_cwosl(
 ) -> Results | None:
     """Analyse one or more SAR CW-OSL measurement sequences.
 
-    The records of ``obj`` must alternate Lx, Tx, Lx, Tx, ... after
-    filtering to the dominant OSL/IRSL curve type. Row 0 of the resulting
-    LxTx table is the natural signal. Returns ``None`` (with a warning) when
-    the sequence cannot be analysed.
+    Runs the single-aliquot regenerative-dose (SAR) protocol after Murray and
+    Wintle (2000): pairs the OSL/IRSL curves into (Lx, Tx), computes the LxTx
+    table via :func:`~luminescence.analysis.lxtx.calc_osl_lxtx_ratio`,
+    evaluates the rejection criteria, fits the dose-response curve, and
+    derives the equivalent dose. Port of the R function ``analyse_SAR.CWOSL``.
+
+    The records of ``obj`` must alternate Lx, Tx, Lx, Tx, ... after filtering
+    to the dominant OSL/IRSL curve type; records whose type starts with an
+    underscore and irradiation steps are dropped beforehand. Row 0 of the
+    resulting LxTx table is the natural signal.
+
+    Args:
+        obj: One measurement sequence, or a list of sequences that are
+            analysed one after the other and row-bound in the output (column
+            ``ALQ`` numbers the aliquots).
+        signal_integral: 1-based, inclusive signal channels (e.g.
+            ``range(1, 3)``). ``None`` selects the alternate mode (full-curve
+            sums, no errors).
+        background_integral: Background channels; must start after the signal
+            integral. A single channel is expanded to the 26 channels ending
+            there.
+        signal_integral_tx: Separate signal channels for the Tx curves;
+            defaults to ``signal_integral``.
+        background_integral_tx: Separate background channels for the Tx
+            curves; defaults to ``background_integral``.
+        integral_input: ``"channel"`` (default) or ``"measurement"`` (x-axis
+            units, converted using the first CW curve's time axis).
+        rejection_criteria: Overrides for the acceptance thresholds. Keys and
+            defaults: ``recycling.ratio`` (10, percent), ``recuperation.rate``
+            (10, percent), ``palaeodose.error`` (10, percent),
+            ``testdose.error`` (10, percent), ``sn.ratio`` (NaN, absolute),
+            ``exceed.max.regpoint`` (True), ``consider.uncertainties``
+            (False), ``sn_reference`` ("Natural"), ``recuperation_reference``
+            ("Natural").
+        dose_points: Regeneration doses, one per Lx/Tx pair; overrides the
+            ``IRR_TIME`` values from the record metadata.
+        dose_rate_source: Source dose rate (e.g. Gy/s); multiplies all dose
+            points, turning seconds into absorbed dose.
+        only_lxtx_table: Skip the dose-response fit and De determination;
+            only the LxTx table and the curve-level rejection criteria are
+            returned.
+        background_count_distribution: Error model for the count statistics,
+            see :func:`~luminescence.analysis.lxtx.calc_osl_lxtx_ratio`.
+        sigmab: Overdispersion override, see ``calc_osl_lxtx_ratio``.
+        sig0: Extra relative error on LxTx, see ``calc_osl_lxtx_ratio``.
+        mode: De determination mode passed to the fit: ``"interpolation"``
+            (default), ``"extrapolation"``, or ``"alternate"``.
+        fit_method: Dose-response model, see
+            :func:`~luminescence.fitting.dose_response.fit_dose_response_curve`.
+        fit_weights: Fit weighting scheme, see ``fit_dose_response_curve``.
+        fit_force_through_origin: Force the dose-response curve through the
+            origin.
+        fit_including_repeated_reg_points: Include repeated regeneration
+            points in the fit (default True).
+        n_mc: Number of Monte-Carlo runs for the De error.
+        rng: Seed or generator for the Monte-Carlo error estimation.
+        verbose: Print the fit message.
+
+    Returns:
+        :class:`~luminescence.core.results.Results` with entries ``"data"``
+        (one summary row per aliquot: De, De.Error, D01, fit metadata,
+        RC.Status, integral ranges, position/grain), ``"LnLxTnTx.table"``
+        (one row per Lx/Tx pair), ``"rejection.criteria"`` (Criteria, Value,
+        Threshold, Status), and ``"Formula"``. ``None`` (with a warning) when
+        the sequence cannot be analysed.
+
+    Raises:
+        TypeError: If ``obj`` is neither an Analysis nor a list of them.
+        ValueError: If dose points are missing or of wrong length, an
+            integral is invalid, or a rejection-criteria reference names an
+            unknown dose point.
     """
     if isinstance(obj, list):
         return _analyse_list(

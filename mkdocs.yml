@@ -1,0 +1,52 @@
+site_name: Luminescence (Python)
+site_description: Python port of the R package Luminescence for luminescence dating data analysis
+repo_url: https://github.com/Cologne-Geomorphological-Software-Lab/Luminescence
+repo_name: Cologne-Geomorphological-Software-Lab/Luminescence
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.sections
+    - content.code.copy
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+          options:
+            docstring_style: google
+            show_source: false
+            show_root_heading: true
+            members_order: source
+            separate_signature: true
+            show_signature_annotations: true
+
+markdown_extensions:
+  - admonition
+  - pymdownx.highlight
+  - pymdownx.superfences
+
+nav:
+  - Home: index.md
+  - Working with the R package: r-migration.md
+  - API reference:
+      - Core data model: reference/core.md
+      - File input/output: reference/io.md
+      - Analysis protocols: reference/analysis.md
+      - Curve fitting: reference/fitting.md
+      - Statistical models: reference/models.md
+      - Plotting: reference/plot.md
+      - Utilities: reference/utils.md

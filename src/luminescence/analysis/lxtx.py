@@ -86,15 +86,63 @@ def calc_osl_lxtx_ratio(
     sig0: float = 0.0,
     digits: int | None = None,
 ) -> Results:
-    """Lx/Tx ratio and its error for one pair of CW-OSL curves.
+    """Compute the Lx/Tx ratio and its error for one pair of CW-OSL curves.
 
-    ``signal_integral=None`` selects the *alternate* mode: full-curve sums
-    with zero errors. ``background_integral=None`` disables background
-    subtraction. Integrals are 1-based inclusive channel numbers (or
-    measurement values with ``integral_input="measurement"``).
+    Signal and background are summed over channel integrals; count errors
+    follow Galbraith (2002, 2014), including an overdispersion estimate for
+    non-Poisson background. Port of the R function ``calc_OSLLxTxRatio``.
 
-    Returns a :class:`Results` with ``"LxTx.table"`` (single-row dict of
-    columns) and ``"calc.parameters"``.
+    Args:
+        lx_data: The regenerated or natural signal curve: a
+            :class:`~luminescence.core.curve.Curve` or an (n, 2) array of
+            (time, counts). A bare counts vector gets a 1-based channel axis.
+        tx_data: The test-dose curve, with the same number of channels as
+            ``lx_data``. ``None`` yields a missing (NaN) ratio.
+        signal_integral: 1-based, inclusive channel numbers of the signal
+            integral, e.g. ``range(1, 3)`` for channels 1-2. ``None`` selects
+            the *alternate* mode: full-curve sums with zero errors.
+        background_integral: Channels of the late-light background; must
+            start after the last signal channel. ``None`` disables background
+            subtraction.
+        signal_integral_tx: Separate signal channels for the Tx curve;
+            defaults to ``signal_integral``.
+        background_integral_tx: Separate background channels for the Tx
+            curve; defaults to ``background_integral``.
+        integral_input: With ``"measurement"``, integrals are given in x-axis
+            units (e.g. seconds) and converted to channels using the Lx time
+            axis; default is ``"channel"``.
+        background_count_distribution: ``"non-poisson"`` (default) includes
+            the overdispersion estimate in the count errors; ``"poisson"``
+            assumes ideal counting statistics.
+        use_previous_bg: Re-use the Lx background for the Tx curve instead of
+            evaluating a separate Tx background integral.
+        sigmab: Overdispersion (absolute squared counts) to use instead of
+            estimating it: one value for both curves or an (Lx, Tx) pair.
+        sig0: Extra relative error added in quadrature to the LxTx error.
+        digits: Round all table values to this many decimal places.
+
+    Returns:
+        :class:`~luminescence.core.results.Results` with two entries:
+        ``"LxTx.table"``, a single-row dict with the columns LnLx, LnLx.BG,
+        TnTx, TnTx.BG, Net_LnLx, Net_LnLx.Error, Net_TnTx, Net_TnTx.Error,
+        SN_RATIO_LnLx, SN_RATIO_TnTx, LxTx, LxTx.Error; and
+        ``"calc.parameters"`` with the overdispersion values and the channel
+        scaling factor k (``None`` in alternate mode).
+
+    Raises:
+        ValueError: If the curves have different channel counts, an integral
+            lies outside the curve or is not integer-valued, or the
+            background integral starts before the end of the signal integral.
+
+    Example:
+        >>> lx = np.column_stack([np.arange(1, 101) * 0.1, counts_lx])
+        >>> tx = np.column_stack([np.arange(1, 101) * 0.1, counts_tx])
+        >>> result = calc_osl_lxtx_ratio(
+        ...     lx, tx, signal_integral=range(1, 11), background_integral=range(51, 101)
+        ... )
+        >>> table = result["LxTx.table"]
+        >>> round(table["LxTx"], 2)  # doctest: +SKIP
+        2.0
     """
     lx = _as_matrix(lx_data, "lx_data")
     if tx_data is not None:
