@@ -235,11 +235,14 @@
 #' Supported are: `main`, `sub`, `ylab`, `xlab`, `zlab`, `zlim`, `ylim`, `cex`,
 #' `lty`, `lwd`, `pch`, `col`, `at`, `breaks`. `xlab` must be
 #' a vector of length two, specifying the upper and lower x-axis labels.
+#' 
+#' Please note that in the interactive mode, if you are using an expression, 
+#' the `zlab` must use HTML tags, such as `D<sub>e</sub>` for `D[e]`.
 #'
 #' @return
 #' Returns a plot object and, optionally, a list with plot calculus data.
 #'
-#' @section Function version: 0.1.21
+#' @section Function version: 0.1.23
 #'
 #' @author
 #' Michael Dietze, GFZ Potsdam (Germany)\cr
@@ -1214,10 +1217,6 @@ plot_AbanicoPlot <- function(
     shift.lines <- 1
   }
 
-  ## extract original plot parameters
-  bg.original <- par()$bg
-  par(bg = layout$abanico$colour$background)
-
   ## setup plot area
   par(mar = if (!rotate) c(4.5, 4.5, shift.lines + 1.5, 7) else c(4, 4, shift.lines + 5, 4),
       xpd = TRUE,
@@ -1285,7 +1284,6 @@ plot_AbanicoPlot <- function(
     polygon.rot(x = par()$usr[2] * c(1, 1, 2, 2),
                 y = c(min(ellipse[, 2]), max(ellipse[, 2]),
                       max(ellipse[, 2]), min(ellipse[, 2])) * 2,
-            col = bg.original,
             lty = 0)
 
     ## optionally, plot dispersion polygon
@@ -1943,11 +1941,11 @@ plot_AbanicoPlot <- function(
   if (interactive) {
     .require_suggested_package("plotly", "The interactive abanico plot")
 
-    ## tidy data ----
+    ### tidy data ----
     data <- plot.output
     kde <- data.frame(x = data$KDE[[1]][ ,2], y = data$KDE[[1]][ ,1])
 
-    # radial scatter plot ----
+    ### radial scatter plot ----
     point.text <- paste0("Measured value:<br />",
                          data$data.global$De, " &plusmn; ",
                          data$data.global$error, "<br />",
@@ -2008,13 +2006,19 @@ plot_AbanicoPlot <- function(
     # minor z-tick lines
     for (i in 1:length(minor.ticks.y)) {
       minor.tick <- data.frame(x = minor.ticks.x, y = rep(minor.ticks.y[i], 2))
-      IAP <- plotly::add_trace(IAP, data = minor.tick,
-                               x = ~x, y = ~y, showlegend = FALSE,
-                               type = "scatter", mode = "lines",
-                               hoverinfo = "none", text = "",
-                               line = list(color = "black",
-                                           width = 1),
-                               yaxis = "y")
+      IAP <- plotly::add_trace(
+        IAP,
+        data = minor.tick,
+        x = ~ x,
+        y = ~ y,
+        showlegend = FALSE,
+        type = "scatter",
+        mode = "lines",
+        hoverinfo = "none",
+        text = "",
+        line = list(color = "black", width = 1),
+        yaxis = "y"
+      )
     }
 
     # z-tick label
@@ -2022,71 +2026,136 @@ plot_AbanicoPlot <- function(
     tick.pos <- data.frame(x = major.ticks.x[2],
                            y = major.ticks.y)
 
-    IAP <- plotly::add_trace(IAP, data = tick.pos,
-                             x = ~x, y = ~y, showlegend = FALSE,
-                             hoverinfo = "none",
-                             text = tick.text, textposition = "right",
-                             type = "scatter", mode = "text",
-                             yaxis = "y")
+    IAP <- plotly::add_trace(
+      IAP,
+      data = tick.pos,
+      x = ~ x,
+      y = ~ y,
+      showlegend = FALSE,
+      hoverinfo = "none",
+      text = tick.text,
+      textposition = "right",
+      type = "scatter",
+      mode = "text",
+      yaxis = "y"
+    )
+    ### Central Line ----
+    central.line <- data.frame(
+      x = c(-100, data$xlim[2]*1/0.75), y = c(0, 0))
+    central.line.text <- paste0(
+      "Central value: ",
+      format(exp(z.central.global), digits = 2, nsmall = 1))
+    IAP <- plotly::add_trace(
+      IAP,
+      data = central.line,
+      x = ~ x,
+      y = ~ y,
+      name = "Central line",
+      type = "scatter",
+      mode = "lines",
+      hoverinfo = "text",
+      text = central.line.text,
+      yaxis = "y",
+      line = list(
+        color = "black",
+        width = 0.5,
+        dash = 2
+      )
+    )
 
-    # Central Line ----
-    central.line <- data.frame(x = c(-100, data$xlim[2]*1/0.75), y = c(0, 0))
-    central.line.text <- paste0("Central value: ",
-                                format(exp(z.central.global), digits = 2, nsmall = 1))
-
-    IAP <- plotly::add_trace(IAP, data = central.line,
-                             x = ~x, y = ~y, name = "Central line",
-                             type = "scatter", mode = "lines",
-                             hoverinfo = "text", text = central.line.text,
-                             yaxis = "y",
-                             line = list(color = "black",
-                                         width = 0.5,
-                                         dash = 2))
-
-    # KDE plot ----
+    ### KDE plot ----
     KDE.x <- xy.0 + KDE[[1]][, 2] * KDE.scale
     KDE.y <- (KDE[[1]][ ,1] - z.central.global) * min(ellipse[,1])
     KDE.curve <- data.frame(x = KDE.x, y = KDE.y)
     KDE.curve <- KDE.curve[KDE.curve$x != xy.0, ]
-    KDE.text <- paste0("Value:",
-                       format(exp(KDE.curve$x), digits = 2, nsmall = 1), "<br />",
-                       "Density:",
-                       format(KDE.curve$y, digits = 2, nsmall = 1))
+    KDE.text <- paste0(
+      "Value:",
+       format(exp(KDE.curve$x), digits = 2, nsmall = 1), "<br />",
+        "Density:",
+       format(KDE.curve$y, digits = 2, nsmall = 1))
 
-    IAP <- plotly::add_trace(IAP, data = KDE.curve,
-                             x = ~x, y = ~y, name = "KDE",
-                             type = "scatter", mode = "lines",
-                             hoverinfo = "text",
-                             text = KDE.text,
-                             line = list(color = "red"),
-                             yaxis = "y")
+    IAP <- plotly::add_trace(
+      IAP,
+      data = KDE.curve,
+      x = ~ x,
+      y = ~ y,
+      name = "KDE",
+      type = "scatter",
+      mode = "lines",
+      hoverinfo = "text",
+      text = KDE.text,
+      line = list(color = "red"),
+      yaxis = "y"
+    )
+    
+    ### set layout -----------------
+    ## fall back to character
+    zlab.text <- if (is.expression(zlab)) "D" else as.character(zlab)
 
-    # set layout ----
-    IAP <- plotly::layout(IAP,
-                          hovermode = "closest",
-                          dragmode = "pan",
-                          xaxis = list(range = c(data$xlim[1], data$xlim[2] * 1/0.65),
-                                       zeroline = FALSE,
-                                       showgrid = FALSE,
-                                       tickmode = "array",
-                                       tickvals = x.axis.ticks),
-                          yaxis = list(range = data$ylim,
-                                       zeroline = FALSE,
-                                       showline = FALSE,
-                                       showgrid = FALSE,
-                                       tickmode = "array",
-                                       tickvals = c(-2, 0, 2)),
-                          shapes = list(list(type = "rect", # 2 sigma bar
-                                             x0 = 0, y0 = -2,
-                                             x1 = bars.x[3], y1 = 2,
-                                             xref = "x", yref = "y",
-                                             fillcolor = "grey",
-                                             opacity = 0.2))
+    ## subtitle content, one line per data set (as in the base "sub" summary)
+    summary.text <- paste(unlist(label.text), collapse = " | ")
+
+    IAP <- plotly::layout(
+      IAP,
+      title = list(
+        text = if (is.expression(main)) "D" else as.character(main)),
+      hovermode = "closest",
+      dragmode = "pan",
+      showlegend = FALSE,
+      xaxis = list(
+        title = xlab[2],
+        range = c(data$xlim[1], data$xlim[2] * 1/0.65),
+        zeroline = FALSE,
+        showgrid = TRUE,
+        tickmode = "array",
+        tickvals = x.axis.ticks),
+      yaxis = list(
+        title = ylab,
+        range = data$ylim,
+        zeroline = FALSE,
+        showline = FALSE,
+        showgrid = FALSE,
+        tickmode = "array",
+        tickvals = c(-2, 0, 2)),
+      shapes = list(list(
+        type = "rect",
+        # 2 sigma bar
+        x0 = 0,
+        y0 = -2,
+        x1 = bars.x[3],
+        y1 = 2,
+        xref = "x",
+        yref = "y",
+        fillcolor = "grey",
+        opacity = 0.2
+      )),
+      annotations = list(
+        list(
+          x = 1.02, 
+          y = 0,
+          xref = "paper", 
+          yref = "y",
+          text = zlab.text,
+          showarrow = FALSE, 
+          textangle = 90, 
+          align = "left"),
+        list(
+          x = 0, 
+          y = 1,
+          xref = "paper", 
+          yref = "paper",
+          text = unlist(label.text),
+          showarrow = FALSE, 
+          textangle = 0, 
+          align = "center")),
+      
+      showlegend = FALSE
     )
 
-    # show and return interactive plot ----
-    #print(plotly::subplot(IAP, IAP.kde))
-    print(IAP)
+    ### show and return interactive plot ----
+    if(is.null(list(...)$.shiny))
+      print(IAP)
+    
     return(IAP)
   }
 

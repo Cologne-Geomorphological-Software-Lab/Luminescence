@@ -103,10 +103,6 @@
 #' the more time is spent in searching the global optimum. The default setting
 #' attempts to strike a balance between quality of the fit and computation
 #' speed.
-#' - `cores` ([numeric] or [character], default: `NULL`): number of cores
-#' allocated for a parallel processing of the Monte-Carlo runs. The default
-#' value corresponds to single-threaded computation; the recommended values is
-#' `"auto"`, which assigns all but two of the available cores.
 #'
 #' **Error estimation**
 #'
@@ -236,11 +232,19 @@
 #' e.g., `par(mfrow(...))`. If `TRUE` no residual plot
 #' is returned; it has no effect if `plot = FALSE`
 #'
+#' @param cores [integer], [numeric] (*with default*):
+#' number of cores allocated for parallel processing of the Monte-Carlo runs.
+#' The default value corresponds to single-threaded computation; the
+#' recommended values is `NULL`, which assigns all but two of the available
+#' logical CPU cores.
+#'
 #' @param ... further arguments that will be passed to the plot output.
 #' Currently supported arguments are `main`, `mtext`, `xlab`, `ylab`,
 #' `xlim`, `ylim`, `log`, `legend` (`TRUE/FALSE`),
 #' `legend.pos`, `legend.text` (passes argument to x,y in
-#' [graphics::legend]), `xaxt`, `verbose` (`TRUE/FALSE`).
+#' [graphics::legend]), `col_nat` (colour of natural points), `col_reg`
+#' (colour of regenerated points), `yaxis_scientific` (`TRUE/FALSE`),
+#' `xaxt`, `verbose` (`TRUE/FALSE`).
 #'
 #' @return
 #' The function returns numerical output and an (*optional*) plot.
@@ -313,7 +317,6 @@
 #'  `squared_residuals` \tab `numeric` \tab the squared residuals (horizontal sliding)
 #' }
 #'
-#'
 #' **slot:** **`@info`**
 #'
 #' The original function call ([methods::language-class]-object)
@@ -331,7 +334,7 @@
 #' measurements (natural vs. regenerated signal), which is in contrast to the
 #' findings by Buylaert et al. (2012).
 #'
-#' @section Function version: 0.7.10
+#' @section Function version: 0.7.13
 #'
 #' @author Sebastian Kreutzer, F2.1 Geophysical Parametrisation/Regionalisation, LIAG - Institute for Applied Geophysics (Germany)
 #'
@@ -450,6 +453,7 @@ analyse_IRSAR.RF<- function(
   txtProgressBar = TRUE,
   plot = TRUE,
   plot_reduced = FALSE,
+  cores = 1,
   ...
 ) {
   .set_function_name("analyse_IRSAR.RF")
@@ -503,6 +507,7 @@ analyse_IRSAR.RF<- function(
         txtProgressBar = txtProgressBar,
         plot = plot,
         plot_reduced = plot_reduced,
+        cores = cores,
         main = temp_main[[x]],
         ...)
     })
@@ -661,8 +666,7 @@ analyse_IRSAR.RF<- function(
     show_fit = FALSE,
     n.MC = if(is.null(n.MC)) NULL else 1000,
     vslide_range = if(method[1] == "VSLIDE") "auto" else NULL,
-    num_slide_windows = 3,
-    cores = NULL
+    num_slide_windows = 3
   )
 
   ##modify list if necessary
@@ -725,6 +729,9 @@ analyse_IRSAR.RF<- function(
   ##get channel resolution (should be equal for all curves, but if not the mean is taken)
   resolution.RF <- round(mean((temp.sequence_structure$x.max/temp.sequence_structure$n.channels)),digits=1)
 
+  ## get internal colour definition
+  col <- get("col", pos = .LuminescenceEnv)
+
   plot.settings <- list(
     main = "IR-RF",
     xlab = "Time [s]",
@@ -734,6 +741,9 @@ analyse_IRSAR.RF<- function(
     legend = TRUE,
     legend.text = c("RF_nat","RF_reg"),
     legend.pos = "top",
+    col_nat = col[2],
+    col_reg = col[1],
+    yaxis_scientific = FALSE,
     xaxt = "s"
     ##xlim and ylim see below as they has to be modified differently
   )
@@ -831,7 +841,7 @@ analyse_IRSAR.RF<- function(
     ##start fitting loop for MC runs
     for (i in seq_len(n.MC)) {
       start.MC["lambda"] <- lambda.MC[i]
-      fit.MC <- try(nls(
+      fit.MC <- try(stats::nls(
         fit.function,
         trace = FALSE,
         data = list(x = RF_reg.x, y = RF_reg.y),
@@ -861,7 +871,7 @@ analyse_IRSAR.RF<- function(
       fit.MC.results <- sapply(stats::na.omit(fit.MC.results), median)
 
       ##try final fitting
-      fit <- try(nls(
+      fit <- try(stats::nls(
         fit.function,
         trace = method_control.settings$trace,
         data = data.frame(x = RF_reg.x, y = RF_reg.y),
@@ -886,7 +896,7 @@ analyse_IRSAR.RF<- function(
     fit.parameters.results <- NA
     if (!inherits(fit,"try-error")) {
       fit.parameters.results <- coef(fit)
-      residuals <- residuals(fit)
+      residuals <- stats::residuals(fit)
     }
 
     ##calculate De value
@@ -1109,42 +1119,14 @@ analyse_IRSAR.RF<- function(
       })
 
       ##set parallel calculation if wanted
-      if (is.null(method_control.settings$cores)) {
-        cores <- 1
-
-      } else {
-        available.cores <- parallel::detectCores()
-        requested.cores <- method_control.settings$cores[1]
-
-        ##case 'auto'
-        if (requested.cores == "auto") {
-          cores <- max(available.cores - 2, 1) # nocov
-
-        } else if (is.numeric(requested.cores)) {
-          .validate_positive_scalar(requested.cores, int = TRUE,
-                                    name = "method_control.settings$cores")
-          if (requested.cores > available.cores) {
-            ##assign all they have, it is not our problem
-            # nocov start
-            .throw_warning("Number of cores limited to the maximum ",
-                           "available (", available.cores, ")")
-            # nocov end
-          }
-          cores <- min(requested.cores, available.cores)
-
-        }else{
-          .throw_message("Invalid value for control argument 'cores', ",
-                         "value set to 1")
-          cores <- 1
-        }
-
-        if (verbose)
-          .throw_message("Using ", cores, ifelse(cores == 1, " core", " cores"),
-                         " ...", error = FALSE)
+      cores <- .validate_cores(cores)
+      if (verbose) {
+        .throw_message("Using ", cores, ifelse(cores == 1, " core", " cores"),
+                       " ...", error = FALSE)
       }
 
       ## SINGLE CORE -----
-      if (cores[1] == 1) {
+      if (cores == 1) {
         if(txtProgressBar){
           ##progress bar
           cat("\n\t Run Monte Carlo loops for error estimation\n")
@@ -1362,11 +1344,8 @@ analyse_IRSAR.RF<- function(
     par.default <- .par_defaults()
     on.exit(par(par.default), add = TRUE)
 
-    ##get internal colour definition
-    col <- get("col", pos = .LuminescenceEnv)
-
     if (!plot_reduced && method != "NONE") {
-        graphics::layout(matrix(c(1, 2), 2, 1, byrow = TRUE), 2, c(1.3, 0.4), TRUE)
+        graphics::layout(matrix(c(1, 2), 2, 1, byrow = TRUE), 2, c(1.3, 0.4), FALSE)
         par(mar = c(0, 4, 3, 1))
     }
     par(cex = plot.settings[["cex"]])
@@ -1384,7 +1363,7 @@ analyse_IRSAR.RF<- function(
           plot.settings$legend.pos,
           legend = plot.settings$legend.text,
           pch = c(19, 3),
-          col = c("red", col[10]),
+          col = c(plot.settings$col_nat, plot.settings$col_reg),
           horiz = TRUE,
           bty = "n",
           cex = 0.9)
@@ -1438,21 +1417,22 @@ analyse_IRSAR.RF<- function(
       .throw_warning(mtext.message)
     }
 
-    ##use scientific format for y-axis
-    labels <- axis(2, labels = FALSE)
-    axis(side = 2, at = labels, labels = format(labels, scientific = TRUE))
+    ## optionally use scientific format for y-axis
+    labels <- grDevices::axisTicks(par("usr")[3:4], ylog)
+    axis(side = 2, at = labels,
+         labels = format(labels, scientific = plot.settings$yaxis_scientific))
 
     ##(1) plot points that have been not selected
     points(RF_reg[-(min(RF_reg.lim):max(RF_reg.lim)),1:2], pch=3, col=col[19])
 
     ##(2) plot points that has been used for the fitting
-    points(RF_reg.x,RF_reg.y, pch=3, col=col[10])
+    points(RF_reg.x, RF_reg.y, pch = 3, col = plot.settings$col_reg)
 
     ##show natural points if no analysis was done
     if (method == "NONE") {
       ##add points
       points(RF_nat, pch = 20, col = "grey")
-      points(RF_nat.limited, pch = 20, col = "red")
+      points(RF_nat.limited, pch = 20, col = plot.settings$col_nat)
 
       ## subtitle
       if ("mtext" %in% names(extraArgs)) {
@@ -1504,7 +1484,7 @@ analyse_IRSAR.RF<- function(
 
       ##add points
       points(RF_nat, pch = 20, col = col[19])
-      points(RF_nat.limited, pch = 20, col = col[2])
+      points(RF_nat.limited, pch = 20, col = plot.settings$col_nat)
 
       .draw_legend()
       .draw_fit_range()
@@ -1576,8 +1556,8 @@ analyse_IRSAR.RF<- function(
       )
 
       ##(2) add used points
-      points(RF_nat.slid[min(RF_nat.lim):max(RF_nat.lim),], pch = 21, col = col[2],
-             bg = col[2])
+      points(RF_nat.slid[min(RF_nat.lim):max(RF_nat.lim), ], pch = 19,
+             col = plot.settings$col_nat)
 
       ##(3) add line to show the connection between the first point and the De
       lines(x = c(RF_nat.slid[1,1], RF_nat.slid[1,1]),
@@ -1641,16 +1621,17 @@ analyse_IRSAR.RF<- function(
           xlim = xlim,
           ylim = if (fit.error) c(-1, 1) else range(residuals),
           xlab = plot.settings$xlab,
-          ylab = "E",
+          ylab = "",
           xaxt = plot.settings$xaxt,
           yaxt = "n",
           type = "p",
           log = gsub("y", "", plot.settings$log)
       )
+      mtext("E", side = 2, line = 1)
 
       if (!fit.error) {
         ## add axis for 0 ... means if the 0 is not visible there is labelling
-        axis(side = 4, at = 0, labels = 0)
+        axis(side = 4, at = 0, labels = 0, line = -1)
 
         ## add residual points
         if (method == "FIT") {
