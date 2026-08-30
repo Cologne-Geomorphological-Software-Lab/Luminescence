@@ -1,7 +1,41 @@
 # Pre-commit hooks for the Python port. Local hooks via `uv run` so the hook
-# versions always match the locked project toolchain (ruff, basedpyright).
-# The R sources are untouched: every hook is restricted to Python files.
+# versions always match the locked project toolchain. Python-specific hooks
+# are restricted to Python files; the top-level `exclude` below keeps every
+# hook, including the general file-hygiene ones, off the R/Rcpp package
+# sources, which are untouched by this config on purpose.
+exclude: |
+  (?x)^(
+    R/|
+    man/|
+    inst/|
+    vignettes/|
+    data/|
+    tests/testthat/|
+    site/|
+    src/.*\.(c|cpp|h|hpp)$|
+    NAMESPACE|
+    DESCRIPTION|
+    NEWS\.Rmd|
+    NEWS\.md|
+    _pkgdown\.yml|
+    codemeta\.json|
+    \.zenodo\.json|
+    \.affiliations\.json|
+    \.Rbuildignore
+  )
+
 repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-toml
+      - id: check-added-large-files
+      - id: check-merge-conflict
+      - id: detect-private-key
+
   - repo: local
     hooks:
       - id: ruff-check
@@ -24,3 +58,43 @@ repos:
         language: system
         types_or: [python]
         pass_filenames: false
+
+      # Not run on a normal commit: several ported functions (io/analysis/fitting)
+      # inherit R's branch-heavy validation logic, which trips these thresholds by
+      # design (see CONTRIBUTING.md, "The porting principle"). Run manually with
+      # `pre-commit run xenon --hook-stage manual --all-files` to check the trend;
+      # revisit once more of the port has idiomatic decomposition.
+      - id: xenon
+        name: xenon (complexity gate)
+        entry: uv run xenon --max-absolute B --max-modules B --max-average A src/luminescence
+        language: system
+        types_or: [python]
+        pass_filenames: false
+        stages: [manual]
+
+      - id: bandit
+        name: bandit (security)
+        entry: uv run bandit -r src/luminescence
+        language: system
+        types_or: [python]
+        pass_filenames: false
+
+      - id: vulture
+        name: vulture (dead code)
+        entry: uv run vulture src/luminescence tests/python --min-confidence 80
+        language: system
+        types_or: [python]
+        pass_filenames: false
+
+      # Not run on a normal commit either: currently flags two duplications that are
+      # structural, not accidental (luminescence/__init__.py re-exporting core's
+      # __all__; the R result-column list shared by sar_cwosl.py and
+      # dose_response.py). Run manually with
+      # `pre-commit run pylint-duplicate-code --hook-stage manual --all-files`.
+      - id: pylint-duplicate-code
+        name: pylint (duplicate code)
+        entry: uv run pylint --disable=all --enable=duplicate-code src/luminescence
+        language: system
+        types_or: [python]
+        pass_filenames: false
+        stages: [manual]
