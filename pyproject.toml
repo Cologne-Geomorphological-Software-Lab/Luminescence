@@ -66,6 +66,7 @@ dev = [
     "bandit>=1.7",
     "vulture>=2.11",
     "pylint>=3.2",
+    "detect-secrets>=1.5",
 ]
 docs = [
     "mkdocs-material>=9.5",
