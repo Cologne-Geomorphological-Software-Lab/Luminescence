@@ -67,6 +67,7 @@ dev = [
     "vulture>=2.11",
     "pylint>=3.2",
     "detect-secrets>=1.5",
+    "pip-audit>=2.7",
 ]
 docs = [
     "mkdocs-material>=9.5",

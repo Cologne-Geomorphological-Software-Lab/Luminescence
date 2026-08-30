@@ -236,8 +236,8 @@ Add write_bin round-trip test against BINfile_V8.binx
 * Description must state: which R function(s) were ported or fixed, what changed, and
   how it was validated against the R oracle (fixtures, snapshots, or both).
 * A series of checks (`python-check.yml`) runs automatically: lint (`ruff`,
-  `basedpyright`) and the test matrix (Linux/Windows/macOS). They must turn green
-  before merging.
+  `basedpyright`, `pip-audit`) and the test matrix (Linux/Windows/macOS). They must
+  turn green before merging.
 * At least one approving review is required before merging.
 
 ### Tests
@@ -249,6 +249,7 @@ uv run ruff format --check .
 uv run basedpyright
 uv run bandit -r src/luminescence
 uv run vulture src/luminescence tests/python --min-confidence 80
+uv run pip-audit
 ```
 
 Pre-commit runs the lint checks automatically on touched files
